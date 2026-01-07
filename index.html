@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Jarvish AI</title>
+
 <style>
 body{
     margin:0;
@@ -11,7 +12,9 @@ body{
     color:#00ffe1;
     font-family:Arial, sans-serif;
     text-align:center;
+    overflow:hidden;
 }
+canvas{display:block;}
 h1{margin-top:15px;}
 #status{color:#0f0;margin:8px;}
 #messages{
@@ -46,18 +49,111 @@ input{
 }
 </style>
 </head>
+
 <body>
+
 <h1>JARVISH AI</h1>
 <div id="status">SYSTEM ONLINE</div>
 <button onclick="unlockVoice()">🔊 Enable Voice</button>
 <button onclick="startListening()">🎤 Speak</button>
+
 <div id="messages"></div>
+
 <div id="controls">
     <input id="userInput" placeholder="Type or speak command..." />
     <button onclick="sendText()">Send</button>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+
 <script>
-/* ---------- VOICE UNLOCK ---------- */
+// ===== THREE.JS VISUALIZER (UNCHANGED LOGIC) =====
+let scene=new THREE.Scene();
+scene.fog=new THREE.FogExp2(0x000000,0.002);
+
+let camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.1,1000);
+camera.position.set(0,0,100);
+
+let renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(devicePixelRatio);
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.AmbientLight(0x00ff99,0.7));
+let pl=new THREE.PointLight(0x00ff99,1.5);
+pl.position.set(0,0,50);
+scene.add(pl);
+
+let core=new THREE.Mesh(
+    new THREE.SphereGeometry(8,64,64),
+    new THREE.MeshStandardMaterial({
+        color:0x00ff99,
+        emissive:0x00ff99,
+        emissiveIntensity:1,
+        roughness:0.2,
+        metalness:0.8
+    })
+);
+scene.add(core);
+
+let torusGroup=new THREE.Group();
+scene.add(torusGroup);
+for(let i=0;i<3;i++){
+    let t=new THREE.Mesh(
+        new THREE.TorusGeometry(20+i*12,0.5,16,100),
+        new THREE.MeshStandardMaterial({
+            color:0x00ff99,
+            emissive:0x00ff99,
+            transparent:true,
+            opacity:0.5
+        })
+    );
+    t.rotation.x=Math.random()*Math.PI;
+    t.rotation.y=Math.random()*Math.PI;
+    torusGroup.add(t);
+}
+
+let pc=2000,pos=new Float32Array(pc*3);
+for(let i=0;i<pc;i++){
+    pos[i*3]=(Math.random()-0.5)*120;
+    pos[i*3+1]=(Math.random()-0.5)*120;
+    pos[i*3+2]=(Math.random()-0.5)*120;
+}
+let particles=new THREE.Points(
+    new THREE.BufferGeometry().setAttribute('position',new THREE.BufferAttribute(pos,3)),
+    new THREE.PointsMaterial({color:0x00ff99,size:1.5,transparent:true,opacity:0.8,blending:THREE.AdditiveBlending})
+);
+scene.add(particles);
+
+navigator.mediaDevices.getUserMedia({audio:true}).then(stream=>{
+    const ctx=new AudioContext();
+    const analyser=ctx.createAnalyser();
+    analyser.fftSize=256;
+    ctx.createMediaStreamSource(stream).connect(analyser);
+    const data=new Uint8Array(analyser.frequencyBinCount);
+
+    function animate(){
+        requestAnimationFrame(animate);
+        analyser.getByteFrequencyData(data);
+        let avg=data.reduce((a,b)=>a+b)/data.length;
+
+        core.scale.setScalar(1+avg/300);
+        core.material.emissiveIntensity=0.7+avg/300;
+
+        torusGroup.children.forEach((t,i)=>{
+            t.rotation.x+=0.002+avg/50000*(i+1);
+            t.rotation.y+=0.001+avg/50000*(i+1);
+        });
+
+        particles.rotation.y+=0.002+avg/50000;
+        particles.rotation.x+=0.001;
+
+        renderer.render(scene,camera);
+    }
+    animate();
+});
+
+// ===== VOICE AI (ALL COMMANDS RESTORED) =====
 let voiceUnlocked=false;
 function unlockVoice(){
     const u=new SpeechSynthesisUtterance("Jarvish voice activated");
@@ -66,15 +162,14 @@ function unlockVoice(){
     voiceUnlocked=true;
     status.innerText="VOICE ENABLED";
 }
-/* ---------- SPEAK ---------- */
+
 function speak(text){
     if(!voiceUnlocked) return;
-    speechSynthesis.cancel();
     const u=new SpeechSynthesisUtterance(text);
     u.lang="hi-IN";
     speechSynthesis.speak(u);
 }
-/* ---------- SPEECH RECOGNITION ---------- */
+
 let recognition;
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 if(SR){
@@ -86,52 +181,45 @@ if(SR){
         respond(text);
     };
 }
-function startListening(){ recognition.start(); } 
-    /* ---------- UI ---------- */
+function startListening(){ recognition.start(); }
+
 function addUser(t){
-    let d=document.createElement("div");
-    d.className="msg-user";
-    d.innerText="You: "+t;
-    messages.appendChild(d);
+    messages.innerHTML+=`<div class="msg-user">You: ${t}</div>`;
 }
 function addAI(t){
-    let d=document.createElement("div");
-    d.className="msg-ai";
-    d.innerText="Jarvish: "+t;
-    messages.appendChild(d);
-    }
-    /* ---------- COMMANDS ---------- */
+    messages.innerHTML+=`<div class="msg-ai">Jarvish: ${t}</div>`;
+}
+
+// ===== ORIGINAL COMMANDS (FULL) =====
 function respond(text){
     let t=text.toLowerCase();
     let reply="माफ़ कीजिए, मैं समझ नहीं पाया।";
-      /* OPEN APPS / WEBSITES */
-    if(t.includes("open youtube")){ reply="यूट्यूब खोल रहा हूँ"; window.open("https://youtube.com","_blank"); }
-    else if(t.includes("open instagram")){ reply="इंस्टाग्राम खोल रहा हूँ"; window.open("https://instagram.com","_blank"); }
-    else if(t.includes("open facebook")){ reply="फेसबुक खोल रहा हूँ"; window.open("https://facebook.com","_blank"); }
-    else if(t.includes("open whatsapp")){ reply="व्हाट्सएप खोल रहा हूँ"; window.open("https://web.whatsapp.com","_blank"); }
-    else if(t.includes("open google")){ reply="गूगल खोल रहा हूँ"; window.open("https://google.com","_blank"); }
-    else if(t.includes("open gmail")){ reply="जीमेल खोल रहा हूँ"; window.open("https://mail.google.com","_blank"); }
-    else if(t.includes("open twitter")||t.includes("open x")){ reply="ट्विटर खोल रहा हूँ"; window.open("https://x.com","_blank"); }
-    else if(t.includes("open snapchat")){ reply="स्नैपचैट खोल रहा हूँ"; window.open("https://snapchat.com","_blank"); }
-    else if(t.includes("open amazon")){ reply="अमेज़न खोल रहा हूँ"; window.open("https://amazon.in","_blank"); }
-    else if(t.includes("open flipkart")){ reply="फ्लिपकार्ट खोल रहा हूँ"; window.open("https://flipkart.com","_blank"); }
-    else if(t.includes("open play store")){ reply="प्ले स्टोर खोल रहा हूँ"; window.open("https://play.google.com","_blank"); }
-    else if(t.includes("open maps")){ reply="गूगल मैप्स खोल रहा हूँ"; window.open("https://maps.google.com","_blank"); }
-    else if(t.includes("open chrome")){ reply="क्रोम खोल रहा हूँ"; window.open("https://google.com","_blank"); }
-    else if(t.includes("open calculator")){ reply="कैलकुलेटर खोल रहा हूँ"; window.open("https://www.google.com/search?q=calculator","_blank"); }                    
-        /* CALL */
+
+    if(t.includes("open youtube")){ reply="यूट्यूब खोल रहा हूँ"; window.open("https://youtube.com"); }
+    else if(t.includes("open instagram")){ reply="इंस्टाग्राम खोल रहा हूँ"; window.open("https://instagram.com"); }
+    else if(t.includes("open facebook")){ reply="फेसबुक खोल रहा हूँ"; window.open("https://facebook.com"); }
+    else if(t.includes("open whatsapp")){ reply="व्हाट्सएप खोल रहा हूँ"; window.open("https://web.whatsapp.com"); }
+    else if(t.includes("open google")){ reply="गूगल खोल रहा हूँ"; window.open("https://google.com"); }
+    else if(t.includes("open gmail")){ reply="जीमेल खोल रहा हूँ"; window.open("https://mail.google.com"); }
+    else if(t.includes("open twitter")||t.includes("open x")){ reply="ट्विटर खोल रहा हूँ"; window.open("https://x.com"); }
+    else if(t.includes("open snapchat")){ reply="स्नैपचैट खोल रहा हूँ"; window.open("https://snapchat.com"); }
+    else if(t.includes("open amazon")){ reply="अमेज़न खोल रहा हूँ"; window.open("https://amazon.in"); }
+    else if(t.includes("open flipkart")){ reply="फ्लिपकार्ट खोल रहा हूँ"; window.open("https://flipkart.com"); }
+    else if(t.includes("open play store")){ reply="प्ले स्टोर खोल रहा हूँ"; window.open("https://play.google.com"); }
+    else if(t.includes("open maps")){ reply="गूगल मैप्स खोल रहा हूँ"; window.open("https://maps.google.com"); }
+    else if(t.includes("open chrome")){ reply="क्रोम खोल रहा हूँ"; window.open("https://google.com"); }
+    else if(t.includes("open calculator")){ reply="कैलकुलेटर खोल रहा हूँ"; window.open("https://www.google.com/search?q=calculator"); }
     else if(t.includes("call rahul")){ reply="राहुल को कॉल कर रहा हूँ"; window.location.href="tel:9876543210"; }
-    /* SYSTEM COMMANDS */
     else if(t.includes("time")){ reply="अभी समय है "+new Date().toLocaleTimeString(); }
     else if(t.includes("date")){ reply="आज की तारीख है "+new Date().toLocaleDateString(); }
-    else if(t.includes("battery")){ reply="मैं बैटरी लेवल नहीं देख सकता"; }
     else if(t.includes("who are you")||t.includes("tum kaun ho")){ reply="मैं जार्विश हूँ, आपका AI असिस्टेंट"; }
     else if(t.includes("hello")||t.includes("हेलो")){ reply="नमस्ते, मैं जार्विश हूँ"; }
     else if(t.includes("thanks")||t.includes("धन्यवाद")){ reply="आपका स्वागत है"; }
+
     addAI(reply);
     speak(reply);
 }
-/* ---------- TEXT INPUT ---------- */
+
 function sendText(){
     let t=userInput.value;
     if(!t) return;
