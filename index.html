@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Jarvish AI</title>
-
 <style>
 body{
     margin:0;
@@ -47,22 +46,16 @@ input{
 }
 </style>
 </head>
-
 <body>
-
 <h1>JARVISH AI</h1>
 <div id="status">SYSTEM ONLINE</div>
-
 <button onclick="unlockVoice()">🔊 Enable Voice</button>
 <button onclick="startListening()">🎤 Speak</button>
-
 <div id="messages"></div>
-
 <div id="controls">
     <input id="userInput" placeholder="Type or speak command..." />
     <button onclick="sendText()">Send</button>
 </div>
-
 <script>
 /* ---------- VOICE UNLOCK ---------- */
 let voiceUnlocked=false;
@@ -73,7 +66,6 @@ function unlockVoice(){
     voiceUnlocked=true;
     status.innerText="VOICE ENABLED";
 }
-
 /* ---------- SPEAK ---------- */
 function speak(text){
     if(!voiceUnlocked) return;
@@ -82,7 +74,6 @@ function speak(text){
     u.lang="hi-IN";
     speechSynthesis.speak(u);
 }
-
 /* ---------- SPEECH RECOGNITION ---------- */
 let recognition;
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -95,9 +86,8 @@ if(SR){
         respond(text);
     };
 }
-function startListening(){ recognition.start(); }
-
-/* ---------- UI ---------- */
+function startListening(){ recognition.start(); } 
+    /* ---------- UI ---------- */
 function addUser(t){
     let d=document.createElement("div");
     d.className="msg-user";
@@ -109,14 +99,12 @@ function addAI(t){
     d.className="msg-ai";
     d.innerText="Jarvish: "+t;
     messages.appendChild(d);
-}
-
-/* ---------- COMMANDS ---------- */
+    }
+    /* ---------- COMMANDS ---------- */
 function respond(text){
     let t=text.toLowerCase();
     let reply="माफ़ कीजिए, मैं समझ नहीं पाया।";
-
-    /* OPEN APPS / WEBSITES */
+      /* OPEN APPS / WEBSITES */
     if(t.includes("open youtube")){ reply="यूट्यूब खोल रहा हूँ"; window.open("https://youtube.com","_blank"); }
     else if(t.includes("open instagram")){ reply="इंस्टाग्राम खोल रहा हूँ"; window.open("https://instagram.com","_blank"); }
     else if(t.includes("open facebook")){ reply="फेसबुक खोल रहा हूँ"; window.open("https://facebook.com","_blank"); }
@@ -130,11 +118,9 @@ function respond(text){
     else if(t.includes("open play store")){ reply="प्ले स्टोर खोल रहा हूँ"; window.open("https://play.google.com","_blank"); }
     else if(t.includes("open maps")){ reply="गूगल मैप्स खोल रहा हूँ"; window.open("https://maps.google.com","_blank"); }
     else if(t.includes("open chrome")){ reply="क्रोम खोल रहा हूँ"; window.open("https://google.com","_blank"); }
-    else if(t.includes("open calculator")){ reply="कैलकुलेटर खोल रहा हूँ"; window.open("https://www.google.com/search?q=calculator","_blank"); }
-
-    /* CALL */
+    else if(t.includes("open calculator")){ reply="कैलकुलेटर खोल रहा हूँ"; window.open("https://www.google.com/search?q=calculator","_blank"); }                    
+        /* CALL */
     else if(t.includes("call rahul")){ reply="राहुल को कॉल कर रहा हूँ"; window.location.href="tel:9876543210"; }
-
     /* SYSTEM COMMANDS */
     else if(t.includes("time")){ reply="अभी समय है "+new Date().toLocaleTimeString(); }
     else if(t.includes("date")){ reply="आज की तारीख है "+new Date().toLocaleDateString(); }
@@ -142,11 +128,9 @@ function respond(text){
     else if(t.includes("who are you")||t.includes("tum kaun ho")){ reply="मैं जार्विश हूँ, आपका AI असिस्टेंट"; }
     else if(t.includes("hello")||t.includes("हेलो")){ reply="नमस्ते, मैं जार्विश हूँ"; }
     else if(t.includes("thanks")||t.includes("धन्यवाद")){ reply="आपका स्वागत है"; }
-
     addAI(reply);
     speak(reply);
 }
-
 /* ---------- TEXT INPUT ---------- */
 function sendText(){
     let t=userInput.value;
@@ -156,6 +140,5 @@ function sendText(){
     userInput.value="";
 }
 </script>
-
 </body>
 </html>
