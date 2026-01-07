@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<title>Jarvish HUD AI</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body{
+    margin:0;
+    background:black;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    overflow:hidden;
+    font-family:Arial;
+    color:#00ff99;
+}
+
+/* HUD FRAME */
+#hud{
+    position:relative;
+    width:90vw;
+    height:60vh;
+    border:2px solid #00ff99;
+    box-shadow:0 0 40px #00ff99;
+}
+
+/* SCAN LINE */
+#scan{
+    position:absolute;
+    width:100%;
+    height:2px;
+    background:#00ff99;
+    animation:scan 3s infinite linear;
+    opacity:0.5;
+}
+@keyframes scan{
+    0%{top:0;}
+    100%{top:100%;}
+}
+
+/* CORE */
+#core{
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    width:120px;
+    height:120px;
+    border-radius:50%;
+    border:3px solid #00ff99;
+    box-shadow:0 0 30px #00ff99;
+}
+
+/* RINGS */
+.ring{
+    position:absolute;
+    border:2px dashed #00ff99;
+    border-radius:50%;
+    animation:rotate 10s linear infinite;
+}
+.r1{width:160px;height:160px;}
+.r2{width:200px;height:200px;animation-duration:14s;}
+.r3{width:240px;height:240px;animation-duration:18s;}
+
+@keyframes rotate{
+    from{transform:translate(-50%,-50%) rotate(0deg);}
+    to{transform:translate(-50%,-50%) rotate(360deg);}
+}
+
+/* AUDIO WAVE */
+#wave{
+    position:absolute;
+    width:100%;
+    height:60px;
+    top:50%;
+    transform:translateY(-50%);
+    display:flex;
+    justify-content:center;
+    gap:4px;
+}
+.bar{
+    width:4px;
+    height:10px;
+    background:#00ff99;
+    box-shadow:0 0 10px #00ff99;
+    transition:height 0.1s;
+}
+
+/* STATUS */
+#status{
+    position:absolute;
+    bottom:10px;
+    left:50%;
+    transform:translateX(-50%);
+    font-size:14px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="hud">
+    <div id="scan"></div>
+    <div id="wave"></div>
+
+    <div id="core">
+        <div class="ring r3"></div>
+        <div class="ring r2"></div>
+        <div class="ring r1"></div>
+    </div>
+
+    <div id="status">SYSTEM ONLINE — SAY “HEY JARVISH”</div>
+</div>
+
+<script>
+/* CREATE AUDIO BARS */
+const wave = document.getElementById("wave");
+for(let i=0;i<30;i++){
+    const bar = document.createElement("div");
+    bar.className = "bar";
+    wave.appendChild(bar);
+}
+const bars = document.querySelectorAll(".bar");
+
+/* SPEECH RECOGNITION SETUP */
+const SpeechRecognition =
+window.SpeechRecognition || window.webkitSpeechRecognition;
+const recognition = new SpeechRecognition();
+recognition.lang = "hi-IN";
+recognition.continuous = true;
+
+/* FUNCTION TO SPEAK */
+function speak(text){
+    const msg = new SpeechSynthesisUtterance(text);
+    msg.lang = "hi-IN";
+    msg.pitch = 1.2;
+    speechSynthesis.speak(msg);
+}
+
+/* MIC PERMISSION & AUDIO VISUALIZER */
+navigator.mediaDevices.getUserMedia({ audio: true })
+.then(stream => {
+    // Audio context for waveform
+    const audioCtx = new AudioContext();
+    const source = audioCtx.createMediaStreamSource(stream);
+    const analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 64;
+    source.connect(analyser);
+    const data = new Uint8Array(analyser.frequencyBinCount);
+
+    function animate(){
+        analyser.getByteFrequencyData(data);
+        bars.forEach((bar,i)=>{
+            bar.style.height = (data[i]/2) + "px";
+        });
+        requestAnimationFrame(animate);
+    }
+    animate();
+
+    // Start speech recognition after mic access
+    recognition.start();
+})
+.catch(err=>{
+    console.error("Mic permission denied", err);
+    document.getElementById("status").innerText = "Mic permission allow करें";
+});
+
+/* COMMANDS */
+recognition.onresult = e =>{
+    const text = e.results[e.results.length-1][0].transcript.toLowerCase();
+    document.getElementById("status").innerText = "INPUT: " + text;
+
+    if(text.includes("hey jarvish")){
+        speak("सिस्टम एक्टिव है");
+    }
+    else if(text.includes("youtube")){
+        speak("यूट्यूब खोल रही हूँ");
+        window.open("https://youtube.com","_blank");
+    }
+    else if(text.includes("गाना")){
+        speak("यूट्यूब पर गाना चला रही हूँ");
+        window.open("https://www.youtube.com/results?search_query=hindi+song","_blank");
+    }
+    else if(text.includes("google")){
+        speak("गूगल खोल रही हूँ");
+        window.open("https://google.com","_blank");
+    }
+    else if(text.includes("instagram")){
+        speak("इंस्टाग्राम खोल रही हूँ");
+        window.open("https://instagram.com","_blank");
+    }
+    else if(text.includes("whatsapp")){
+        speak("WhatsApp Web खोल रही हूँ");
+        window.open("https://web.whatsapp.com","_blank");
+    }
+    else if(text.includes("समय")){
+        let time = new Date().toLocaleTimeString();
+        speak("अभी समय है " + time);
+    }
+    else if(text.includes("तारीख")){
+        let date = new Date().toLocaleDateString();
+        speak("आज की तारीख है " + date);
+    }
+    else if(text.includes("तुम कौन हो")){
+        speak("मैं जार्विश हूँ, आपकी पर्सनल AI असिस्टेंट");
+    }
+    else if(text.includes("जोक")){
+        const jokes = [
+            "एक आदमी डॉक्टर के पास गया, डॉक्टर ने कहा – कुछ नहीं, बस हँसते रहो।",
+            "टीचर – गणित क्यों नहीं कर रहे हो? स्टूडेंट – सर, मैंने calculator खो दिया।"
+        ];
+        let joke = jokes[Math.floor(Math.random()*jokes.length)];
+        speak(joke);
+    }
+    else if(text.includes("weather") || text.includes("मौसम")){
+        speak("मौसम देखने के लिए गूगल खोल रही हूँ");
+        window.open("https://www.google.com/search?q=weather","_blank");
+    }
+    else if(text.includes("news") || text.includes("समाचार")){
+        speak("न्यूज़ खोल रही हूँ");
+        window.open("https://news.google.com","_blank");
+    }
+    else if(text.includes("calculator") || text.includes("कैलकुलेटर")){
+        speak("कैलकुलेटर खोल रही हूँ");
+        window.open("https://www.online-calculator.com/","_blank");
+    }
+    else if(text.includes("notepad") || text.includes("नोटपैड")){
+        speak("Notepad खोल रही हूँ");
+        window.open("https://anotepad.com/","_blank");
+    }
+};
+
+/* ERROR HANDLING */
+recognition.onerror = ()=>{
+    document.getElementById("status").innerText = "Mic permission allow करें";
+};
+</script>
+
+</body>
+  </html>
